@@ -13,28 +13,28 @@ echo "bad password: $(curl -sS -X POST "$B/api/v2/open/auth/login" -H "$J" -d '{
 echo "signup: $(curl -sS -X POST "$B/api/v2/open/signup/register" -H "$J" -d '{"login":"eve","password":"evepassword1","invite":null}' | jq -c . 2>/dev/null || true)"
 H="Sharry-Auth: $tok"
 if [ "$MODE" = upload ]; then
-  head -c $((MB*1024*1024)) /dev/urandom > /tmp/up.bin
-  sha=$(sha256sum /tmp/up.bin | cut -d' ' -f1)
+  head -c $((MB*1024*1024)) /dev/urandom > ${TMPDIR:-/tmp}/up.bin
+  sha=$(sha256sum ${TMPDIR:-/tmp}/up.bin | cut -d' ' -f1)
   # Same path as the web UI: empty share, then a resumable (tus) upload in 10 MB chunks.
   sid=$(curl -fsS -X POST "$B/api/v2/sec/upload/new" -H "$H" -H "$J" \
       -d '{"validity":604800000,"maxViews":30,"name":"smoke"}' | jq -r .id)
-  size=$(stat -c %s /tmp/up.bin)
+  size=$(stat -c %s ${TMPDIR:-/tmp}/up.bin)
   loc=$(curl -fsS -D - -o /dev/null -X POST "$B/api/v2/sec/upload/$sid/files/tus" -H "$H" -H 'Tus-Resumable: 1.0.0' \
       -H "Sharry-File-Length: $size" -H 'Sharry-File-Name: up.bin' -H 'Sharry-File-Type: application/octet-stream' \
       | tr -d '\r' | awk 'tolower($1)=="location:"{print $2}')
   echo "tus location: $loc"
-  split -b 10M -d /tmp/up.bin /tmp/chunk.; off=0
-  for c in /tmp/chunk.*; do
+  split -b 10M -d ${TMPDIR:-/tmp}/up.bin ${TMPDIR:-/tmp}/chunk.; off=0
+  for c in ${TMPDIR:-/tmp}/chunk.*; do
     curl -fsS -X PATCH "$loc" -H "$H" -H 'Tus-Resumable: 1.0.0' -H "Upload-Offset: $off" \
       -H 'Content-Type: application/offset+octet-stream' --data-binary "@$c" -o /dev/null
     off=$((off + $(stat -c %s "$c")))
   done
-  rm /tmp/chunk.*; echo "uploaded $off bytes"
+  rm ${TMPDIR:-/tmp}/chunk.*; echo "uploaded $off bytes"
   echo "share $sid"
   curl -fsS -X POST "$B/api/v2/sec/share/$sid/publish" -H "$H" -H "$J" -d '{"reuseId":false}' | jq -c .
-  echo "$sid $sha" > /tmp/smoke.state
+  echo "$sid $sha" > ${TMPDIR:-/tmp}/smoke.state
 fi
-read sid sha < /tmp/smoke.state
+read sid sha < ${TMPDIR:-/tmp}/smoke.state
 det=$(curl -fsS "$B/api/v2/sec/share/$sid" -H "$H")
 pid=$(echo "$det" | jq -r .publishInfo.id); fid=$(echo "$det" | jq -r '.files[0].id')
 got=$(curl -fsS "$B/api/v2/open/share/$pid/file/$fid" | sha256sum | cut -d' ' -f1)
