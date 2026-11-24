@@ -31,13 +31,16 @@ export SHARRY_BACKEND_JDBC_URL="jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABA
 export SHARRY_BACKEND_JDBC_USER="$PGUSER"
 export SHARRY_BACKEND_JDBC_PASSWORD="$PGPASSWORD"
 
-# A sibling's private DNS name can take a minute to resolve on a first deploy.
-for i in $(seq 1 90); do
-  if (exec 3<>"/dev/tcp/${PGHOST}/${PGPORT}") 2>/dev/null; then break; fi
-  [ "$i" -eq 90 ] && die "PostgreSQL at ${PGHOST}:${PGPORT} did not answer within 180 s."
-  [ "$i" -eq 1 ] && log "waiting for PostgreSQL at ${PGHOST}:${PGPORT}..."
+# A sibling's private DNS name can take a minute to resolve on a first deploy,
+# and a connect to a restarting Postgres can hang without an answer, so every
+# attempt gets its own 3 s timeout and the whole wait a 150 s deadline.
+log "waiting for PostgreSQL at ${PGHOST}:${PGPORT}..."
+deadline=$((SECONDS + 150))
+until timeout 3 bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "$PGHOST" "$PGPORT" 2>/dev/null; do
+  [ "$SECONDS" -ge "$deadline" ] && die "PostgreSQL at ${PGHOST}:${PGPORT} did not answer within 150 s."
   sleep 2
 done
+log "PostgreSQL is reachable."
 
 # --- Network ----------------------------------------------------------------
 export SHARRY_BIND_ADDRESS="0.0.0.0"
