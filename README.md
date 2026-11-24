@@ -27,7 +27,7 @@ Nothing to fill in at deploy time. The start script (`start.sh`):
 - refuses to start (exit 1) if the admin password is shorter than 16 characters or the server secret shorter than 32;
 - turns on upstream's fixed `admin` login (the account is created as admin on its first login) and keeps **open sign-up off** (`closed`);
 - never sets `SHARRY_BACKEND_AUTH_INTERNAL_ENABLED`: in v1.17.0 that variable also switches on header-based proxy login, which would let anyone log in as admin with an `X-Valid-User` header;
-- waits for PostgreSQL, sets the base URL from `RAILWAY_PUBLIC_DOMAIN`, and sizes the JVM heap (45 % of the memory limit), CPU count and checksum workers from the container's cgroup, so it runs inside Railway's 0.5 GB Free-plan limit. An out-of-memory error exits non-zero so Railway restarts it.
+- waits up to 150 s for PostgreSQL (3 s per attempt, so a Postgres restart at the same moment cannot hang it), sets the base URL from `RAILWAY_PUBLIC_DOMAIN`, and sizes the JVM heap (45 % of the memory limit), CPU count and checksum workers from the container's cgroup, so it runs inside Railway's 0.5 GB Free-plan limit. An out-of-memory error exits non-zero so Railway restarts it.
 
 Any other Sharry setting can be added as a `SHARRY_*` variable on the service (see [upstream's configuration docs](https://eikek.github.io/sharry/doc/configure)), for example `SHARRY_BACKEND_SIGNUP_MODE=invite`, `SHARRY_BACKEND_SHARE_MAX_SIZE=5G` or the `SHARRY_BACKEND_MAIL_*` SMTP settings. Extra JVM flags go in `SHARRY_EXTRA_JAVA_OPTS`.
 
