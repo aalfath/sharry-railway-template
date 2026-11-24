@@ -1,0 +1,25 @@
+# Local test only (Daytona). Mirrors the Railway template's variables.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: localtestpw
+      POSTGRES_DB: railway
+    volumes: [pg:/var/lib/postgresql/data]
+  sharry:
+    build: ..
+    mem_limit: 512m
+    cpus: 1
+    ports: ["8080:8080"]
+    environment:
+      PORT: "8080"
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: localtestpw
+      PGDATABASE: railway
+      SHARRY_ADMIN_PASSWORD: localAdminPassword123
+      SHARRY_SERVER_SECRET: 0123456789abcdef0123456789abcdef0123
+volumes:
+  pg: {}
